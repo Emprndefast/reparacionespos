@@ -1,9 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import {
+  collection,
+  addDoc,
+  onSnapshot,
+  query,
+  orderBy,
+  deleteDoc,
+  doc,
+  updateDoc,
+} from 'firebase/firestore';
 import { db } from './firebase';
-import './App.css';
-import { TextField, Button, Container, Typography, Grid, Card, CardContent, CardActions, Box, Snackbar, CircularProgress } from '@mui/material';
-import { Delete, Print, Paid } from '@mui/icons-material';
+import { useThemeContext } from './ThemeContext';
+
+import {
+  TextField,
+  Button,
+  Container,
+  Typography,
+  Grid,
+  Card,
+  CardContent,
+  CardActions,
+  Snackbar,
+  CircularProgress,
+  IconButton,
+  Box,
+} from '@mui/material';
+
+import { Delete, Print, Paid, Brightness4, Brightness7 } from '@mui/icons-material';
 
 function App() {
   const [cliente, setCliente] = useState('');
@@ -17,10 +41,12 @@ function App() {
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarOpen, setSnackbarOpen] = useState(false);
 
+  const { toggleTheme, mode } = useThemeContext();
+
   useEffect(() => {
-    const q = query(collection(db, "reparaciones"), orderBy("fecha", "desc"));
+    const q = query(collection(db, 'reparaciones'), orderBy('fecha', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const datos = snapshot.docs.map(doc => ({
+      const datos = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
         fecha: doc.data().fecha.toDate?.() || new Date(doc.data().fecha),
@@ -33,7 +59,7 @@ function App() {
   const guardarReparacion = async () => {
     setLoading(true);
     try {
-      await addDoc(collection(db, "reparaciones"), {
+      await addDoc(collection(db, 'reparaciones'), {
         cliente,
         modelo,
         problema,
@@ -41,10 +67,15 @@ function App() {
         fecha: new Date(fecha),
         pagado,
       });
-      setSnackbarMessage("Reparación guardada");
-      setCliente(""); setModelo(""); setProblema(""); setPrecio(""); setFecha(""); setPagado(false);
+      setSnackbarMessage('Reparación guardada');
+      setCliente('');
+      setModelo('');
+      setProblema('');
+      setPrecio('');
+      setFecha('');
+      setPagado(false);
     } catch (error) {
-      setSnackbarMessage("Error guardando reparación");
+      setSnackbarMessage('Error guardando reparación');
       console.error(error);
     }
     setSnackbarOpen(true);
@@ -54,10 +85,10 @@ function App() {
   const eliminarReparacion = async (id) => {
     setLoading(true);
     try {
-      await deleteDoc(doc(db, "reparaciones", id));
-      setSnackbarMessage("Reparación eliminada");
+      await deleteDoc(doc(db, 'reparaciones', id));
+      setSnackbarMessage('Reparación eliminada');
     } catch (error) {
-      setSnackbarMessage("Error eliminando reparación");
+      setSnackbarMessage('Error eliminando reparación');
       console.error(error);
     }
     setSnackbarOpen(true);
@@ -67,9 +98,9 @@ function App() {
   const marcarComoPagado = async (id) => {
     try {
       await updateDoc(doc(db, 'reparaciones', id), { pagado: true });
-      setSnackbarMessage("Reparación marcada como pagada");
+      setSnackbarMessage('Reparación marcada como pagada');
     } catch (error) {
-      setSnackbarMessage("Error marcando como pagado");
+      setSnackbarMessage('Error marcando como pagado');
       console.error(error);
     }
     setSnackbarOpen(true);
@@ -108,17 +139,25 @@ function App() {
   };
 
   return (
-    <div className="App">
-      <Container maxWidth="md" sx={{ mt: 4, pb: 5 }}>
-        <Typography variant="h4" align="center" gutterBottom>Registro de Reparaciones</Typography>
+    <Box p={2}>
+      <Box display="flex" justifyContent="flex-end" mb={2}>
+        <IconButton onClick={toggleTheme} color="inherit">
+          {mode === 'dark' ? <Brightness7 /> : <Brightness4 />}
+        </IconButton>
+      </Box>
 
-        <form onSubmit={e => { e.preventDefault(); guardarReparacion(); }}>
+      <Container maxWidth="md" sx={{ mt: 2, pb: 5 }}>
+        <Typography variant="h4" align="center" gutterBottom>
+          Registro de Reparaciones
+        </Typography>
+
+        <form onSubmit={(e) => { e.preventDefault(); guardarReparacion(); }}>
           <Grid container spacing={2}>
-            <Grid item xs={12}><TextField label="Cliente" fullWidth value={cliente} onChange={e => setCliente(e.target.value)} /></Grid>
-            <Grid item xs={12}><TextField label="Modelo" fullWidth value={modelo} onChange={e => setModelo(e.target.value)} /></Grid>
-            <Grid item xs={12}><TextField label="Problema" fullWidth value={problema} onChange={e => setProblema(e.target.value)} /></Grid>
-            <Grid item xs={12}><TextField label="Precio" type="number" fullWidth value={precio} onChange={e => setPrecio(e.target.value)} /></Grid>
-            <Grid item xs={12}><TextField label="Fecha" type="date" fullWidth InputLabelProps={{ shrink: true }} value={fecha} onChange={e => setFecha(e.target.value)} /></Grid>
+            <Grid item xs={12}><TextField label="Cliente" fullWidth value={cliente} onChange={(e) => setCliente(e.target.value)} /></Grid>
+            <Grid item xs={12}><TextField label="Modelo" fullWidth value={modelo} onChange={(e) => setModelo(e.target.value)} /></Grid>
+            <Grid item xs={12}><TextField label="Problema" fullWidth value={problema} onChange={(e) => setProblema(e.target.value)} /></Grid>
+            <Grid item xs={12}><TextField label="Precio" type="number" fullWidth value={precio} onChange={(e) => setPrecio(e.target.value)} /></Grid>
+            <Grid item xs={12}><TextField label="Fecha" type="date" fullWidth InputLabelProps={{ shrink: true }} value={fecha} onChange={(e) => setFecha(e.target.value)} /></Grid>
             <Grid item xs={12}>
               <Button type="submit" fullWidth variant="contained" color="primary" disabled={loading}>
                 {loading ? <CircularProgress size={24} /> : 'Guardar Reparación'}
@@ -131,7 +170,7 @@ function App() {
           <Typography variant="h6" gutterBottom>Historial</Typography>
           {reparaciones.length > 0 ? (
             <Grid container spacing={2}>
-              {reparaciones.map(rep => (
+              {reparaciones.map((rep) => (
                 <Grid item xs={12} sm={6} key={rep.id}>
                   <Card>
                     <CardContent>
@@ -171,7 +210,7 @@ function App() {
 
         <Snackbar open={snackbarOpen} autoHideDuration={4000} onClose={() => setSnackbarOpen(false)} message={snackbarMessage} />
       </Container>
-    </div>
+    </Box>
   );
 }
 

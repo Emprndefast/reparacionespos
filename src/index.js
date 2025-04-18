@@ -2,11 +2,15 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import './styles/global.css';
-import * as serviceWorkerRegistration from './serviceWorkerRegistration';
+import { CustomThemeProvider } from './ThemeContext';
+import * as serviceWorkerRegistration from './serviceWorkerRegistration'; // para PWA
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<App />);
+root.render(
+  <CustomThemeProvider>
+    <App />
+  </CustomThemeProvider>
+);
 
-// Registrar PWA para que funcione sin conexión
+// Esto hace tu app PWA
 serviceWorkerRegistration.register();
