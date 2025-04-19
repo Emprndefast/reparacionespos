@@ -177,16 +177,13 @@ function App() {
   };
 
   return (
-    
-    
     <Box p={2}>
-    
       <Box display="flex" justifyContent="space-between" alignItems="center" p={2}>
-  <Typography variant="h5">Reparaciones NT</Typography>
-  <IconButton onClick={toggleTheme}>
-    {mode === 'dark' ? <Brightness7 /> : <Brightness4 />}
-  </IconButton>
-</Box>
+        <Typography variant="h5">Reparaciones NT</Typography>
+        <IconButton onClick={toggleTheme}>
+          {mode === 'dark' ? <Brightness7 /> : <Brightness4 />}
+        </IconButton>
+      </Box>
 
       <Container maxWidth="md">
         {/* Muestra de ganancias horizontales */}
@@ -206,7 +203,6 @@ function App() {
             <Typography variant="h6" color="primary">${ganancias.mes.toFixed(2)}</Typography>
           </Card>
         </Box>
-        
 
         {/* Título y formulario de registro de reparaciones */}
         <Typography variant="h4" align="center" gutterBottom>
@@ -214,31 +210,35 @@ function App() {
         </Typography>
 
         {/* Formulario para registrar una nueva reparación */}
-        <form onSubmit={(e) => { e.preventDefault(); guardarReparacion(); }} style={{ backgroundColor: '#f9f9f9', padding: '16px', borderRadius: '8px' }}>
-  <Grid container spacing={2}>
-    <Grid item xs={12}>
-      <TextField label="Cliente" fullWidth value={cliente} onChange={(e) => setCliente(e.target.value)} />
-    </Grid>
-    <Grid item xs={12}>
-      <TextField label="Modelo" fullWidth value={modelo} onChange={(e) => setModelo(e.target.value)} />
-    </Grid>
-    <Grid item xs={12}>
-      <TextField label="Problema" fullWidth value={problema} onChange={(e) => setProblema(e.target.value)} />
-    </Grid>
-    <Grid item xs={12}>
-      <TextField label="Precio" type="number" fullWidth value={precio} onChange={(e) => setPrecio(e.target.value)} />
-    </Grid>
-    <Grid item xs={12}>
-      <TextField label="Fecha" type="date" fullWidth InputLabelProps={{ shrink: true }} value={fecha} onChange={(e) => setFecha(e.target.value)} />
-    </Grid>
-    <Grid item xs={12}>
-      <Button type="submit" fullWidth variant="contained" color="primary" disabled={loading} sx={{ padding: 2 }}>
-        {loading ? <CircularProgress size={24} color="inherit" /> : 'Guardar Reparación'}
-      </Button>
-    </Grid>
-  </Grid>
-</form>
-
+        <form onSubmit={(e) => { e.preventDefault(); guardarReparacion(); }} 
+          style={{ 
+            backgroundColor: mode === 'dark' ? '#333' : '#f9f9f9', 
+            padding: '16px', 
+            borderRadius: '8px' 
+          }}>
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <TextField label="Cliente" fullWidth value={cliente} onChange={(e) => setCliente(e.target.value)} />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField label="Modelo" fullWidth value={modelo} onChange={(e) => setModelo(e.target.value)} />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField label="Problema" fullWidth value={problema} onChange={(e) => setProblema(e.target.value)} />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField label="Precio" type="number" fullWidth value={precio} onChange={(e) => setPrecio(e.target.value)} />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField label="Fecha" type="date" fullWidth InputLabelProps={{ shrink: true }} value={fecha} onChange={(e) => setFecha(e.target.value)} />
+            </Grid>
+            <Grid item xs={12}>
+              <Button type="submit" fullWidth variant="contained" color="primary" disabled={loading} sx={{ padding: 2 }}>
+                {loading ? <CircularProgress size={24} color="inherit" /> : 'Guardar Reparación'}
+              </Button>
+            </Grid>
+          </Grid>
+        </form>
 
         {/* Lista de reparaciones */}
         <Box mt={2}>
@@ -272,19 +272,18 @@ function App() {
 
       {/* Snackbar para mostrar mensajes */}
       <Snackbar
-  open={snackbarOpen}
-  autoHideDuration={9000}
-  onClose={() => setSnackbarOpen(false)}
-  message={snackbarMessage}
-  sx={{
-    backgroundColor: 'green',
-    borderRadius: 5,
-    '& .MuiSnackbarContent-root': {
-      fontWeight: 'bold',
-    },
-  }}
-/>
-
+        open={snackbarOpen}
+        autoHideDuration={9000}
+        onClose={() => setSnackbarOpen(false)}
+        message={snackbarMessage}
+        sx={{
+          backgroundColor: 'green',
+          borderRadius: 5,
+          '& .MuiSnackbarContent-root': {
+            fontWeight: 'bold',
+          },
+        }}
+      />
     </Box>
   );
 }
