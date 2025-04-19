@@ -1,19 +1,13 @@
 import React from 'react';
-import './Invoice.css';
 
-const Invoice = ({ data }) => {
-  const fecha = new Date(data.fecha.seconds * 1000).toLocaleString();
-
+const Invoice = ({ repair }) => {
   return (
-    <div className="invoice">
-      <h2>Factura de Reparación</h2>
-      <p><strong>Cliente:</strong> {data.cliente}</p>
-      <p><strong>Fecha:</strong> {fecha}</p>
-      <p><strong>Dispositivo:</strong> {data.modelo}</p>
-      <p><strong>Problema:</strong> {data.problema}</p>
-      <p><strong>Precio:</strong> ${data.precio}</p>
-      <hr />
-      <h3>Total: ${data.precio}</h3>
+    <div>
+      <h3>Factura de Reparación</h3>
+      <p>Dispositivo: {repair.deviceName}</p>
+      <p>Cliente: {repair.clientName}</p>
+      <p>Precio: {repair.price}</p>
+      {/* Añadir más detalles según sea necesario */}
     </div>
   );
 };
