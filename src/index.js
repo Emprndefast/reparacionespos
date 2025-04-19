@@ -2,7 +2,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import { CustomThemeProvider } from './ThemeContext';
+import { CustomThemeProvider } from './pages/ThemeContext';
 import * as serviceWorkerRegistration from './serviceWorkerRegistration'; // para PWA
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
