@@ -1,201 +1,290 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  Container, TextField, Button, List, ListItem,
-  Typography, Card, CardContent, CardActions,
-  IconButton, Snackbar, Box, CssBaseline,
-  FormControlLabel, Switch
-} from '@mui/material';
-import { Delete, Print, Paid } from '@mui/icons-material';
+  collection,
+  addDoc,
+  onSnapshot,
+  query,
+  orderBy,
+  deleteDoc,
+  doc,
+  updateDoc,
+  Timestamp,
+} from 'firebase/firestore';
 import { db } from './firebase';
-import { collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc } from 'firebase/firestore';
-import { createTheme, ThemeProvider } from '@mui/material/styles';
+import { useThemeContext } from './ThemeContext';
+import {
+  TextField,
+  Button,
+  Container,
+  Typography,
+  Grid,
+  Card,
+  CardContent,
+  CardActions,
+  Snackbar,
+  CircularProgress,
+  IconButton,
+  Box,
+} from '@mui/material';
+import {
+  Delete,
+  Print,
+  Paid,
+  Brightness4,
+  Brightness7,
+} from '@mui/icons-material';
 
 function App() {
+  // Estado para los formularios
+  const [cliente, setCliente] = useState('');
+  const [modelo, setModelo] = useState('');
+  const [problema, setProblema] = useState('');
+  const [precio, setPrecio] = useState('');
+  const [fecha, setFecha] = useState('');
+  const [pagado, setPagado] = useState(false);
+
+  // Estado para gestionar las reparaciones
   const [reparaciones, setReparaciones] = useState([]);
-  const [form, setForm] = useState({ cliente: '', modelo: '', problema: '', precio: '' });
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
-  const [darkMode, setDarkMode] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [ganancias, setGanancias] = useState({ dia: 0, semana: 0, mes: 0 });
 
-  const theme = createTheme({
-    palette: {
-      mode: darkMode ? 'dark' : 'light',
-    },
-  });
+  const { toggleTheme, mode } = useThemeContext();
 
+  // Cargar las reparaciones desde Firebase
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'reparaciones'), (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-      setReparaciones(data);
+    const q = query(collection(db, 'reparaciones'), orderBy('fecha', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const datos = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+        fecha: doc.data().fecha instanceof Timestamp
+          ? doc.data().fecha.toDate()
+          : new Date(doc.data().fecha),
+      }));
+      setReparaciones(datos);
     });
     return () => unsubscribe();
   }, []);
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+  // Calcular las ganancias al cargar las reparaciones
+  useEffect(() => {
+    calcularGanancias();
+  }, [reparaciones]);
 
-  const guardarReparacion = async () => {
-    if (!form.cliente || !form.modelo || !form.problema || !form.precio) {
-      setSnackbarMessage('Completa todos los campos');
-      setSnackbarOpen(true);
-      return;
-    }
-
-    const nuevaReparacion = {
-      ...form,
-      precio: parseFloat(form.precio),
-      fecha: Date.now(),
-      pagado: false,
-    };
-
-    await addDoc(collection(db, 'reparaciones'), nuevaReparacion);
-    setForm({ cliente: '', modelo: '', problema: '', precio: '' });
-    setSnackbarMessage('Reparación guardada');
-    setSnackbarOpen(true);
-  };
-
-  const eliminarReparacion = async (id) => {
-    await deleteDoc(doc(db, 'reparaciones', id));
-    setSnackbarMessage('Reparación eliminada');
-    setSnackbarOpen(true);
-  };
-
-  const marcarComoPagado = async (id) => {
-    await updateDoc(doc(db, 'reparaciones', id), { pagado: true });
-    setSnackbarMessage('Marcado como pagado');
-    setSnackbarOpen(true);
-  };
-
-  const imprimirFactura = (reparacion) => {
-    const contenido = `
-      Cliente: ${reparacion.cliente}
-      Modelo: ${reparacion.modelo}
-      Problema: ${reparacion.problema}
-      Precio: $${reparacion.precio}
-      Fecha: ${new Date(reparacion.fecha).toLocaleDateString()}
-      Estado: ${reparacion.pagado ? 'Pagado' : 'Pendiente'}
-    `;
-    const ventana = window.open('', '', 'width=600,height=400');
-    ventana.document.write(`<pre>${contenido}</pre>`);
-    ventana.print();
-    ventana.close();
-  };
-
-  const imprimirEtiqueta = (reparacion) => {
-    const contenido = `
-      *** ETIQUETA DE SERVICIO ***
-      Cliente: ${reparacion.cliente}
-      Modelo: ${reparacion.modelo}
-      Problema: ${reparacion.problema}
-    `;
-    const ventana = window.open('', '', 'width=400,height=300');
-    ventana.document.write(`<pre>${contenido}</pre>`);
-    ventana.print();
-    ventana.close();
-  };
-
+  // Función para calcular ganancias diarias, semanales y mensuales
   const calcularGanancias = () => {
     const hoy = new Date();
-    const dia = hoy.toLocaleDateString();
-    const semanaActual = getSemana(hoy);
-    const mesActual = hoy.getMonth();
+    const inicioSemana = new Date(hoy);
+    inicioSemana.setDate(hoy.getDate() - hoy.getDay());
+    const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
 
-    let gananciasDia = 0;
-    let gananciasSemana = 0;
-    let gananciasMes = 0;
+    let dia = 0, semana = 0, mes = 0;
 
     reparaciones.forEach((rep) => {
-      const fecha = new Date(rep.fecha);
-      if (rep.pagado) {
-        if (fecha.toLocaleDateString() === dia) {
-          gananciasDia += rep.precio;
-        }
-        if (getSemana(fecha) === semanaActual) {
-          gananciasSemana += rep.precio;
-        }
-        if (fecha.getMonth() === mesActual) {
-          gananciasMes += rep.precio;
-        }
-      }
+      const fecha = rep.fecha instanceof Date ? rep.fecha : new Date(rep.fecha);
+      const precio = parseFloat(rep.precio) || 0;
+
+      if (fecha.toDateString() === hoy.toDateString()) dia += precio;
+      if (fecha >= inicioSemana) semana += precio;
+      if (fecha >= inicioMes) mes += precio;
     });
 
-    return { gananciasDia, gananciasSemana, gananciasMes };
+    setGanancias({ dia, semana, mes });
   };
 
-  const getSemana = (fecha) => {
-    const inicio = new Date(fecha.getFullYear(), 0, 1);
-    const dias = Math.floor((fecha - inicio) / (24 * 60 * 60 * 1000));
-    return Math.ceil((dias + inicio.getDay() + 1) / 7);
+  // Función para guardar una reparación en Firebase
+  const guardarReparacion = async () => {
+    setLoading(true);
+    try {
+      await addDoc(collection(db, 'reparaciones'), {
+        cliente,
+        modelo,
+        problema,
+        precio: parseFloat(precio),
+        fecha: new Date(fecha),
+        pagado,
+      });
+      setSnackbarMessage('Reparación guardada');
+      setCliente(''); setModelo(''); setProblema(''); setPrecio(''); setFecha(''); setPagado(false);
+    } catch (error) {
+      setSnackbarMessage('Error guardando reparación');
+      console.error(error);
+    }
+    setSnackbarOpen(true);
+    setLoading(false);
   };
 
-  const { gananciasDia, gananciasSemana, gananciasMes } = calcularGanancias();
+  // Función para eliminar una reparación de Firebase
+  const eliminarReparacion = async (id) => {
+    setLoading(true);
+    try {
+      await deleteDoc(doc(db, 'reparaciones', id));
+      setSnackbarMessage('Reparación eliminada');
+    } catch (error) {
+      setSnackbarMessage('Error eliminando reparación');
+      console.error(error);
+    }
+    setSnackbarOpen(true);
+    setLoading(false);
+  };
+
+  // Función para marcar una reparación como pagada
+  const marcarComoPagado = async (id) => {
+    try {
+      await updateDoc(doc(db, 'reparaciones', id), { pagado: true });
+      setSnackbarMessage('Reparación marcada como pagada');
+    } catch (error) {
+      setSnackbarMessage('Error marcando como pagado');
+      console.error(error);
+    }
+    setSnackbarOpen(true);
+  };
+
+  // Función para imprimir la factura de una reparación
+  const imprimirFactura = (reparacion) => {
+    const ventana = window.open('', '_blank');
+    ventana.document.write('<html><head><title>Factura</title></head><body>');
+    ventana.document.write(`
+      <h2>Factura de Reparación</h2>
+      <p><strong>Cliente:</strong> ${reparacion.cliente}</p>
+      <p><strong>Modelo:</strong> ${reparacion.modelo}</p>
+      <p><strong>Problema:</strong> ${reparacion.problema}</p>
+      <p><strong>Precio:</strong> $${reparacion.precio}</p>
+      <p><strong>Fecha:</strong> ${new Date(reparacion.fecha).toLocaleDateString()}</p>
+    `);
+    ventana.document.write('</body></html>');
+    ventana.document.close();
+    ventana.print();
+  };
+
+  // Función para imprimir la etiqueta de una reparación
+  const imprimirEtiqueta = (reparacion) => {
+    const ventana = window.open('', '_blank');
+    ventana.document.write('<html><head><title>Etiqueta</title></head><body>');
+    ventana.document.write(`
+      <div style="border:1px dashed #000; padding:10px; width:250px; font-family:Arial;">
+        <p><strong>${reparacion.cliente}</strong></p>
+        <p>${reparacion.modelo}</p>
+        <p>${reparacion.problema}</p>
+        <p>📅 ${new Date(reparacion.fecha).toLocaleDateString()}</p>
+      </div>
+    `);
+    ventana.document.write('</body></html>');
+    ventana.document.close();
+    ventana.print();
+  };
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Container sx={{ py: 4 }}>
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-          <Typography variant="h4">Sistema POS Reparaciones</Typography>
-          <FormControlLabel
-            control={<Switch checked={darkMode} onChange={() => setDarkMode(!darkMode)} />}
-            label="Modo oscuro"
-          />
+    <Box p={2}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" p={2}>
+        <Typography variant="h5">Reparaciones NT</Typography>
+        <IconButton onClick={toggleTheme}>
+          {mode === 'dark' ? <Brightness7 /> : <Brightness4 />}
+        </IconButton>
+      </Box>
+
+      <Container maxWidth="md">
+        {/* Muestra de ganancias horizontales */}
+        <Box display="flex" justifyContent="space-between" mb={4}>
+          <Card sx={{ padding: 2, flex: 1, mx: 1 }}>
+            <Typography variant="body1" color="textSecondary">Hoy:</Typography>
+            <Typography variant="h6" color="success.main">${ganancias.dia.toFixed(2)}</Typography>
+          </Card>
+
+          <Card sx={{ padding: 2, flex: 1, mx: 1 }}>
+            <Typography variant="body1" color="textSecondary">Semana:</Typography>
+            <Typography variant="h6" color="info.main">${ganancias.semana.toFixed(2)}</Typography>
+          </Card>
+
+          <Card sx={{ padding: 2, flex: 1, mx: 1 }}>
+            <Typography variant="body1" color="textSecondary">Mes:</Typography>
+            <Typography variant="h6" color="primary">${ganancias.mes.toFixed(2)}</Typography>
+          </Card>
         </Box>
 
-        <Box display="flex" gap={2} flexWrap="wrap" mb={2}>
-          <TextField label="Cliente" name="cliente" value={form.cliente} onChange={handleChange} />
-          <TextField label="Modelo" name="modelo" value={form.modelo} onChange={handleChange} />
-          <TextField label="Problema" name="problema" value={form.problema} onChange={handleChange} />
-          <TextField label="Precio" name="precio" value={form.precio} onChange={handleChange} type="number" />
-          <Button variant="contained" onClick={guardarReparacion}>Guardar</Button>
-        </Box>
+        {/* Título y formulario de registro de reparaciones */}
+        <Typography variant="h4" align="center" gutterBottom>
+          Registro de Reparaciones
+        </Typography>
 
-        <Box mb={2}>
-          <Typography variant="h6">Ganancias</Typography>
-          <Typography>Día: ${gananciasDia}</Typography>
-          <Typography>Semana: ${gananciasSemana}</Typography>
-          <Typography>Mes: ${gananciasMes}</Typography>
-        </Box>
+        {/* Formulario para registrar una nueva reparación */}
+        <form onSubmit={(e) => { e.preventDefault(); guardarReparacion(); }} 
+          style={{ 
+            backgroundColor: mode === 'dark' ? '#333' : '#f9f9f9', 
+            padding: '16px', 
+            borderRadius: '8px' 
+          }}>
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <TextField label="Cliente" fullWidth value={cliente} onChange={(e) => setCliente(e.target.value)} />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField label="Modelo" fullWidth value={modelo} onChange={(e) => setModelo(e.target.value)} />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField label="Problema" fullWidth value={problema} onChange={(e) => setProblema(e.target.value)} />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField label="Precio" type="number" fullWidth value={precio} onChange={(e) => setPrecio(e.target.value)} />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField label="Fecha" type="date" fullWidth InputLabelProps={{ shrink: true }} value={fecha} onChange={(e) => setFecha(e.target.value)} />
+            </Grid>
+            <Grid item xs={12}>
+              <Button type="submit" fullWidth variant="contained" color="primary" disabled={loading} sx={{ padding: 2 }}>
+                {loading ? <CircularProgress size={24} color="inherit" /> : 'Guardar Reparación'}
+              </Button>
+            </Grid>
+          </Grid>
+        </form>
 
-        <Box>
+        {/* Lista de reparaciones */}
+        <Box mt={2}>
           {reparaciones.map((reparacion) => (
-            <Card key={reparacion.id} sx={{ mb: 2, borderRadius: 2, boxShadow: 3, backgroundColor: 'background.paper', padding: 2 }}>
-              <CardContent>
-                <Typography variant="h6">{reparacion.cliente}</Typography>
-                <Typography color="textSecondary">{reparacion.modelo} - {reparacion.problema}</Typography>
-                <Typography variant="body2">Precio: ${reparacion.precio}</Typography>
-                <Typography variant="body2">Fecha: {new Date(reparacion.fecha).toLocaleDateString()}</Typography>
-                <Typography variant="body2" color={reparacion.pagado ? 'success.main' : 'warning.main'}>
-                  {reparacion.pagado ? 'Pagado' : 'Pendiente de pago'}
-                </Typography>
-              </CardContent>
-              <CardActions>
-                <Button startIcon={<Delete />} color="error" onClick={() => eliminarReparacion(reparacion.id)}>
-                  Eliminar
-                </Button>
-                <Button startIcon={<Paid />} color="success" disabled={reparacion.pagado} onClick={() => marcarComoPagado(reparacion.id)}>
-                  Marcar como pagado
-                </Button>
-                <Button startIcon={<Print />} onClick={() => imprimirFactura(reparacion)}>
-                  Factura
-                </Button>
-                <Button onClick={() => imprimirEtiqueta(reparacion)}>
-                  Etiqueta
-                </Button>
+          <Card key={reparacion.id} sx={{
+            mb: 2, 
+            borderRadius: 2, 
+            boxShadow: 3, 
+            backgroundColor: 'background.paper',
+            '&:hover': {
+              boxShadow: 6,
+            },
+          }}>
+            <CardContent>
+              <Typography variant="h6">{reparacion.cliente}</Typography>
+              <Typography variant="body2">{reparacion.modelo}</Typography>
+              <Typography variant="body2">{reparacion.problema}</Typography>
+              <Typography variant="body1">${reparacion.precio}</Typography>
+              <Typography variant="body2">{new Date(reparacion.fecha).toLocaleDateString()}</Typography>
+            </CardContent>
+            <CardActions>
+                <Button size="small" color="primary" onClick={() => marcarComoPagado(reparacion.id)} disabled={reparacion.pagado}><Paid /> Pagado</Button>
+                <Button size="small" color="secondary" onClick={() => eliminarReparacion(reparacion.id)}><Delete /> Eliminar</Button>
+                <Button size="small" onClick={() => imprimirFactura(reparacion)}><Print /> Factura</Button>
+                <Button size="small" onClick={() => imprimirEtiqueta(reparacion)}><Print /> Etiqueta</Button>
               </CardActions>
             </Card>
           ))}
         </Box>
-
-        <Snackbar
-          open={snackbarOpen}
-          autoHideDuration={4000}
-          onClose={() => setSnackbarOpen(false)}
-          message={snackbarMessage}
-        />
       </Container>
-    </ThemeProvider>
+
+      {/* Snackbar para mostrar mensajes */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={9000}
+        onClose={() => setSnackbarOpen(false)}
+        message={snackbarMessage}
+        sx={{
+          backgroundColor: 'green',
+          borderRadius: 5,
+          '& .MuiSnackbarContent-root': {
+            fontWeight: 'bold',
+          },
+        }}
+      />
+    </Box>
   );
 }
 
